@@ -26,7 +26,7 @@ BEGIN {
    *available_langs = *available_languages = \&available;
 }
 
-$VERSION = '0.11';
+$VERSION = '0.12';
 
 @ISA         = qw(Exporter);
 @EXPORT      = ();
@@ -41,7 +41,7 @@ $VERSION = '0.11';
                   standard2 => [ qw/ available_languages to_string        to_ordinal        / ],
                   long      => [ qw/ available_languages number_to_string number_to_ordinal / ],
                );
-@EXPORT_TAGS{qw/ std std2 /} = @EXPORT_TAGS{ qw/ standard standard2 / };
+@EXPORT_TAGS{ qw/ std std2 / } = @EXPORT_TAGS{ qw/ standard standard2 / };
 
 my %LMAP;
 my $DEFAULT = 'EN';
@@ -82,9 +82,9 @@ sub _dummy_oo      {
          return $s;
       }
    );
-   $code =~ s{CLASS}{$class};
-   #warn "[OO] $code\n";
+   $code =~ s{CLASS}{$class}sg;
    eval $code;
+   die "Error compiling dummy object: $@" if $@;
 }
 
 sub _probe {
@@ -147,10 +147,7 @@ sub _compile {
       elsif ( $sym{ordinal2alpha}   ) { $LMAP{ $id }->{ ordinal } = \&{ $cl . "::ordinal2alpha"  } }
       else                            { $LMAP{ $id }->{ ordinal } = \&_dummy_ordinal;              }
    }
-   use Data::Dumper;
-   my $d = Data::Dumper->new([\%LMAP]);
-   $d->Deparse(1);
-   #print $d->Dump;
+   undef %sym;
 }
 
 1;
