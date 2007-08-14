@@ -23,7 +23,7 @@ or under Windows:
 
 DEPENDENCIES
 
-      Lingua::En::Numbers
+      Lingua::EN::Numbers
       Test::More
 
 RECOMMENDED MODULES

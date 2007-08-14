@@ -5,7 +5,7 @@ Module::Build->new(
    module_name => 'Lingua::Any::Numbers',
    license     => 'perl',
    requires    => {
-      'Lingua::En::Numbers' => 0,
+      'Lingua::EN::Numbers' => 0,
       'Test::More'          => 0,
    },
    recommends  => {

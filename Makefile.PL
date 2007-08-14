@@ -4,7 +4,7 @@ WriteMakefile(
    'NAME'         => 'Lingua::Any::Numbers',
    'VERSION_FROM' => 'lib/Lingua/Any/Numbers.pm',
    'PREREQ_PM'    => {
-      'Lingua::En::Numbers' => 0,
+      'Lingua::EN::Numbers' => 0,
       'Test::More'          => 0,
    },
    ($] >= 5.005 ? (

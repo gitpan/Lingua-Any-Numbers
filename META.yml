@@ -1,6 +1,6 @@
 ---
 name: Lingua-Any-Numbers
-version: 0.10
+version: 0.11
 author:
   - 'Burak Gursoy <burak@cpan.org>'
 abstract: Converts numbers into (any available language) string.
@@ -8,7 +8,7 @@ license: perl
 resources:
   license: http://dev.perl.org/licenses/
 requires:
-  Lingua::En::Numbers: 0
+  Lingua::EN::Numbers: 0
   Test::More: 0
 recommends:
   Lingua::AF::Numbers: 0
@@ -24,7 +24,7 @@ recommends:
 provides:
   Lingua::Any::Numbers:
     file: lib/Lingua/Any/Numbers.pm
-    version: 0.10
+    version: 0.11
 generated_by: Module::Build version 0.2805
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

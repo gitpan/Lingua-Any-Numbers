@@ -26,7 +26,7 @@ BEGIN {
    *available_langs = *available_languages = \&available;
 }
 
-$VERSION = '0.10';
+$VERSION = '0.11';
 
 @ISA         = qw(Exporter);
 @EXPORT      = ();
