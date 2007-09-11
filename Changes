@@ -2,6 +2,13 @@ Revision history for Perl extension Lingua::Any::Numbers.
 
 Time zone is GMT+2.
 
+0.20 Wed Sep 12 00:24:28 2007
+   => Fixed _dummy_oo(). Error reported by brian d foy.
+   => Improved unit tests.
+   => Added option to auto-skip language drivers if they want
+      a newer perl binary.
+   => Added a new macro named SILENT.
+
 0.12 Tue Aug 14 23:11:32 2007
    => Forgot to remove debugging code.
 

@@ -1,5 +1,6 @@
 package Lingua::Any::Numbers;
 use strict;
+
 use subs qw(
    to_string
    num2str
@@ -13,10 +14,35 @@ use subs qw(
    available_langs
    available_languages
 );
-use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
-use constant LCLASS => 0;
-use constant LFILE  => 1;
-use constant LID    => 2;
+
+use vars qw(
+   $VERSION
+   @ISA
+   @EXPORT
+   @EXPORT_OK
+   %EXPORT_TAGS
+);
+
+use constant LCLASS          => 0;
+use constant LFILE           => 1;
+use constant LID             => 2;
+
+use constant PREHISTORIC     =>  $] < 5.006;
+use constant LEGACY          => ($] < 5.008) && ! PREHISTORIC;
+
+use constant RE_LEGACY_PERL => qr{
+                                 Perl \s+ (.+?) \s+ required
+                                 --this \s+ is \s+ only \s+ (.+?),
+                                 \s+ stopped
+                                 }xmsi;
+use constant RE_LEGACY_VSTR => qr{
+                                 syntax \s+ error \s+ at \s+ (.+?)
+                                 \s+ line \s+ (?:.+?),
+                                 \s+ near \s+ "use \s+ (.+?)"
+                                 }xmsi;
+use constant RE_UTF8_FILE => qr{
+                                 Unrecognized \s+ character \s+ \\ \d+ \s+
+                                 }xmsi;
 use File::Spec;
 use Exporter ();
 
@@ -26,7 +52,7 @@ BEGIN {
    *available_langs = *available_languages = \&available;
 }
 
-$VERSION = '0.12';
+$VERSION = '0.20';
 
 @ISA         = qw(Exporter);
 @EXPORT      = ();
@@ -70,21 +96,13 @@ sub available { keys %LMAP }
 
 # -- PRIVATE -- #
 
+sub _is_silent () { defined &SILENT && &SILENT }
+
 sub _dummy_ordinal { $_[0] }
 sub _dummy_string  { $_[0] }
 sub _dummy_oo      {
    my $class = shift;
-   my $code  = q(
-      sub {
-         my $num = shift;
-         my $o = CLASS->new;
-         my $s = $o->parse($num);
-         return $s;
-      }
-   );
-   $code =~ s{CLASS}{$class}sg;
-   eval $code;
-   die "Error compiling dummy object: $@" if $@;
+   sub { $class->new->parse( shift ) }
 }
 
 sub _probe {
@@ -111,14 +129,42 @@ sub _probe {
       closedir DIRH;
    }
 
-   my $str = join "\n",
-             map {
-                sprintf "require %s; %s->import;", $_->[LCLASS], $_->[LCLASS]
-             } @classes;
-   eval $str;
-   die "An error occurred while including sub modules: $@" if $@;
-   _compile( \@classes );
+   my($code, @compile, $class);
+   foreach my $module ( @classes ) {
+      $class = $module->[LCLASS];
 
+      # PL driver is problematic under 5.5.4
+      if ( PREHISTORIC && $class->isa('Lingua::PL::Numbers') ) {
+         _w("Disabling $class under legacy perl ($])") && next;
+      }
+
+      $code  = "require $class; $class->import;";
+      eval $code;
+      # some modules need attention
+      if ( my $e = $@ ) {
+         _w(_eprobe( $class, $1, $2 )) && next if $e =~ RE_LEGACY_PERL; # JA -> 5.6.2
+         _w(_eprobe( $class, $2, $] )) && next if $e =~ RE_LEGACY_VSTR; # HU -> 5.005_04
+         _w(_eprobe( $class, $]     )) && next if $e =~ RE_UTF8_FILE;   # JA -> 5.005_04
+         die "An error occurred while including sub modules: $e";
+      }
+      else {
+         push @compile, $module;
+      }
+   }
+   _compile( \@compile );
+
+}
+
+sub _w {
+   return 1 if _is_silent();
+   warn "@_\n";
+}
+
+sub _eprobe {
+   my $tmp = @_ == 3 ? "%s requires a newer (%s) perl binary. You have %s"
+           :           "%s requires a newer perl binary. You have %s"
+           ;
+   return sprintf $tmp, @_
 }
 
 sub _compile {
@@ -140,7 +186,7 @@ sub _compile {
          if ( $sym{ $to  }          ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::" . $to         } }
       elsif ( $sym{ $to2 }          ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::" . $to2        } }
       elsif ( $sym{cardinal2alpha}  ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::cardinal2alpha" } }
-      elsif ( $sym{parse}           ) { $LMAP{ $id }->{ string  } = _dummy_oo( $cl )               }
+      elsif ( $sym{parse}           ) { $LMAP{ $id }->{ string  } =   _dummy_oo( $cl )             }
       else                            { $LMAP{ $id }->{ string  } = \&_dummy_string              }
 
          if ( $sym{ $ord }          ) { $LMAP{ $id }->{ ordinal } = \&{ $cl . "::" . $ord        } }
@@ -191,9 +237,9 @@ but there are some pre-defined import tags:
 
 =head1 FUNCTIONS
 
-All language parameters (C<LANG>) has a default value: C<EN>.
+All language parameters (C<LANG>) have a default value: C<EN>.
 
-=head2 to_string [, LANG ]
+=head2 to_string NUMBER [, LANG ]
 
 Aliases:
 
@@ -205,7 +251,7 @@ Aliases:
 
 =back
 
-=head2 to_ordinal [, LANG ]
+=head2 to_ordinal NUMBER [, LANG ]
 
 Aliases: 
 
@@ -230,6 +276,16 @@ Aliases:
 =item available_languages
 
 =back
+
+=head1 DEBUGGING
+
+=head2 SILENT
+
+If you define a sub named C<Lingua::Any::Numbers::SILENT> and return
+a true value from that, then the module will not generate any warnings
+when it faces some recoverable errors.
+
+C<Lingua::Any::Numbers::SILENT> is not defined by default.
 
 =head1 CAVEATS
 
