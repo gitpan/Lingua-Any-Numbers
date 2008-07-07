@@ -2,6 +2,11 @@ Revision history for Perl extension Lingua::Any::Numbers.
 
 Time zone is GMT+2.
 
+0.21 Mon Jul  7 21:49:28 2008
+   => Implemented locale support (global & parameter)
+          per request from Ted Zlatanov.
+   => Refactored functions.
+
 0.20 Wed Sep 12 00:24:28 2007
    => Fixed _dummy_oo(). Error reported by brian d foy.
    => Improved unit tests.

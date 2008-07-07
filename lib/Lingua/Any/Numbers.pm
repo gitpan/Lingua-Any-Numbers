@@ -1,5 +1,8 @@
 package Lingua::Any::Numbers;
 use strict;
+use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
+
+$VERSION = '0.21';
 
 use subs qw(
    to_string
@@ -13,14 +16,6 @@ use subs qw(
    available
    available_langs
    available_languages
-);
-
-use vars qw(
-   $VERSION
-   @ISA
-   @EXPORT
-   @EXPORT_OK
-   %EXPORT_TAGS
 );
 
 use constant LCLASS          => 0;
@@ -45,6 +40,7 @@ use constant RE_UTF8_FILE => qr{
                                  }xmsi;
 use File::Spec;
 use Exporter ();
+use Carp qw(croak);
 
 BEGIN {
    *num2str         = *number_to_string    = \&to_string;
@@ -52,49 +48,75 @@ BEGIN {
    *available_langs = *available_languages = \&available;
 }
 
-$VERSION = '0.20';
-
 @ISA         = qw(Exporter);
 @EXPORT      = ();
 @EXPORT_OK   = qw(
-                  to_string  number_to_string  num2str
-                  to_ordinal number_to_ordinal num2ord
-                  available  available_langs   available_languages
-               );
+   to_string  number_to_string  num2str
+   to_ordinal number_to_ordinal num2ord
+   available  available_langs   available_languages
+);
+
 %EXPORT_TAGS = (
-                  all       => [ @EXPORT_OK ],
-                  standard  => [ qw/ available           to_string        to_ordinal        / ],
-                  standard2 => [ qw/ available_languages to_string        to_ordinal        / ],
-                  long      => [ qw/ available_languages number_to_string number_to_ordinal / ],
-               );
+   all       => [ @EXPORT_OK ],
+   standard  => [ qw/ available           to_string        to_ordinal        / ],
+   standard2 => [ qw/ available_languages to_string        to_ordinal        / ],
+   long      => [ qw/ available_languages number_to_string number_to_ordinal / ],
+);
+
 @EXPORT_TAGS{ qw/ std std2 / } = @EXPORT_TAGS{ qw/ standard standard2 / };
 
 my %LMAP;
-my $DEFAULT = 'EN';
+my $DEFAULT    = 'EN';
+my $USE_LOCALE = 0;
 
 _probe(); # fetch/examine/compile all available modules
 
-sub to_string {
-   my $n      = shift;
-   my $lang   = shift || $DEFAULT;
-      $lang   = uc $lang;
-   my $struct = $LMAP{ $lang };
-   die "Language ($lang) is not available" if ! $struct;
-   return $struct->{string}->( $n );
+sub import {
+   my $class = shift;
+   my @args  = @_;
+   my @exports;
+
+   foreach my $thing ( @args ) {
+      if ( lc $thing eq '+locale' ) { $USE_LOCALE = 1; next; }
+      if ( lc $thing eq '-locale' ) { $USE_LOCALE = 0; next; }
+      push @exports, $thing;
+   }
+
+   $class->export_to_level( 1, $class, @exports );
 }
 
-sub to_ordinal {
-   my $n      = shift;
-   my $lang   = shift || $DEFAULT;
-      $lang   = uc $lang;
-   my $struct = $LMAP{ $lang };
-   die "Language ($lang) is not available" if ! $struct;
-   return $struct->{ordinal}->( $n );
-}
-
-sub available { keys %LMAP }
+sub to_string  { _to( string  => @_ ) }
+sub to_ordinal { _to( ordinal => @_ ) }
+sub available  { keys %LMAP           }
 
 # -- PRIVATE -- #
+
+sub _to {
+   my $type   = shift || croak "No type specified";
+   my $n      = shift;
+   my $lang   = shift || _get_lang();
+      $lang   = uc $lang;
+      $lang   = _get_lang($lang) if $lang eq 'LOCALE';
+   my $struct = $LMAP{ $lang };
+   croak "Language ($lang) is not available" if ! $struct;
+   return $struct->{ $type }->( $n );
+}
+
+sub _get_lang {
+   my $lang;
+   my $locale = shift;
+   $lang = _get_lang_from_locale() if $locale || $USE_LOCALE;
+   $lang = $DEFAULT if ! $lang;
+   return uc $lang;
+}
+
+sub _get_lang_from_locale {
+   require I18N::LangTags::Detect;
+   my @user_wants = I18N::LangTags::Detect::detect();
+   my $lang = $user_wants[0] || return;
+   ($lang,undef) = split /\-/, $lang; # tr-tr
+   return $lang;
+}
 
 sub _is_silent () { defined &SILENT && &SILENT }
 
@@ -235,9 +257,35 @@ but there are some pre-defined import tags:
    :std2       Alias to :standard2
    :long       available_languages(), number_to_string(), number_to_ordinal()
 
+=head1 IMPORT PRAGMAS
+
+Some parameters enable/disable module features. C<+> is prefixed to enable
+these options. Pragmas have global effect (i.e.: not lexical), they can not
+be disabled afterwards.
+
+=head2 locale
+
+Use the language from system locale:
+
+   use Lingua::Any::Numbers qw(:std +locale);
+   print to_string(81); # will use locale
+
+However, the second parameter to the functions take precedence. If the language
+parameter is used, C<locale> pragma will be discarded.
+
+Install all the C<Lingua::*::Numbers> modules to take advantage of the
+locale pragma.
+
+It is also possible to enable C<locale> usage through the functions.
+See L</FUNCTIONS>.
+
+C<locale> is implemented with L<I18N::LangTags::Detect>.
+
 =head1 FUNCTIONS
 
-All language parameters (C<LANG>) have a default value: C<EN>.
+All language parameters (C<LANG>) have a default value: C<EN>. If it is set to
+C<LOCALE>, then the language from the system C<locale> will be used
+(if available).
 
 =head2 to_string NUMBER [, LANG ]
 
@@ -317,18 +365,40 @@ L<Lingua::FR::Numbers>, L<Lingua::HU::Numbers>, L<Lingua::IT::Numbers>,
 L<Lingua::JA::Numbers>, L<Lingua::NL::Numbers>, L<Lingua::PL::Numbers>,
 L<Lingua::TR::Numbers>, L<Lingua::ZH::Numbers>.
 
+=head1 SUPPORT
+
+=head2 BUG REPORTS
+
+All bug reports and wishlist items B<must> be reported via
+the CPAN RT system. It is accessible at
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Lingua-Any-Numbers>.
+
+=head2 DISCUSSION FORUM
+
+C<CPAN::Forum> is a place for discussing C<CPAN>
+modules. It also has a C<Lingua::Any::Numbers> section at
+L<http://www.cpanforum.com/dist/Lingua-Any-Numbers>.
+
+=head2 RATINGS
+
+If you like or hate or have some suggestions about
+C<Lingua::Any::Numbers>, you can comment/rate the distribution via 
+the C<CPAN Ratings> system: 
+L<http://cpanratings.perl.org/dist/Lingua-Any-Numbers>.
+
+
 =head1 AUTHOR
 
 Burak Gürsoy, E<lt>burakE<64>cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2007 Burak Gürsoy. All rights reserved.
+Copyright 2007-2008 Burak Gürsoy. All rights reserved.
 
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify 
-it under the same terms as Perl itself, either Perl version 5.8.8 or, 
+it under the same terms as Perl itself, either Perl version 5.10 or, 
 at your option, any later version of Perl 5 you may have available.
 
 =cut

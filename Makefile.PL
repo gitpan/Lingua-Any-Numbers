@@ -1,12 +1,13 @@
+use strict;
+use vars qw(%PREREQ %RECOMMEND);
 use ExtUtils::MakeMaker;
+
+do 'PREREQ' or die "Error including PREREQ: $!";
 
 WriteMakefile(
    'NAME'         => 'Lingua::Any::Numbers',
    'VERSION_FROM' => 'lib/Lingua/Any/Numbers.pm',
-   'PREREQ_PM'    => {
-      'Lingua::EN::Numbers' => 0,
-      'Test::More'          => 0,
-   },
+   'PREREQ_PM'    => \%PREREQ,
    ($] >= 5.005 ? (
    AUTHOR   => 'Burak Gursoy <burak@cpan.org>',
    ABSTRACT => 'Converts numbers into any available language',
@@ -14,18 +15,9 @@ WriteMakefile(
    PL_FILES => {},
 );
 
-print <<RECOMMENDED;
-Recommended Modules:
+my $rbuf = '';
+foreach my $mod ( sort keys %RECOMMEND ) {
+    $rbuf = "    $mod\n";
+}
 
-      Lingua::AF::Numbers
-      Lingua::EU::Numbers
-      Lingua::FR::Numbers
-      Lingua::HU::Numbers
-      Lingua::IT::Numbers
-      Lingua::JA::Numbers
-      Lingua::NL::Numbers
-      Lingua::PL::Numbers
-      Lingua::TR::Numbers
-      Lingua::ZH::Numbers
-
-RECOMMENDED
+print "Recommended Modules:\n$mod\n";
