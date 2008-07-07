@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.21';
+$VERSION = '0.22';
 
 use subs qw(
    to_string
@@ -385,7 +385,6 @@ If you like or hate or have some suggestions about
 C<Lingua::Any::Numbers>, you can comment/rate the distribution via 
 the C<CPAN Ratings> system: 
 L<http://cpanratings.perl.org/dist/Lingua-Any-Numbers>.
-
 
 =head1 AUTHOR
 

@@ -17,7 +17,7 @@ WriteMakefile(
 
 my $rbuf = '';
 foreach my $mod ( sort keys %RECOMMEND ) {
-    $rbuf = "    $mod\n";
+    $rbuf .= "    $mod\n";
 }
 
-print "Recommended Modules:\n$mod\n";
+print "Recommended Modules:\n$rbuf\n";

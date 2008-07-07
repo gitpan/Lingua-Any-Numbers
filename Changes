@@ -2,6 +2,9 @@ Revision history for Perl extension Lingua::Any::Numbers.
 
 Time zone is GMT+2.
 
+0.22 Mon Jul  7 23:38:41 2008
+   => Note to self: also test Makefile.PL when changed :p
+
 0.21 Mon Jul  7 21:49:28 2008
    => Implemented locale support (global & parameter)
           per request from Ted Zlatanov.
