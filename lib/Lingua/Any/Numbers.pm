@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.22';
+$VERSION = '0.23';
 
 use subs qw(
    to_string
@@ -97,6 +97,11 @@ sub _to {
    my $lang   = shift || _get_lang();
       $lang   = uc $lang;
       $lang   = _get_lang($lang) if $lang eq 'LOCALE';
+   if ( ($lang eq 'LOCALE' || $USE_LOCALE) && ! exists $LMAP{ $lang } ) {
+      _w("Locale language ($lang) is not available. "
+          ."Falling back to default language ($DEFAULT)");
+      $lang = $DEFAULT; # prevent die()ing from an absent driver
+   }
    my $struct = $LMAP{ $lang };
    croak "Language ($lang) is not available" if ! $struct;
    return $struct->{ $type }->( $n );
