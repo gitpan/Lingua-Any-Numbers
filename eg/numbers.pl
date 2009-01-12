@@ -12,7 +12,9 @@ use Encode::Guess;
 use Lingua::Any::Numbers qw(:std);
 use Text::Table;
 
-our $VERSION = '0.10';
+binmode STDOUT, ':utf8';
+
+our $VERSION = '0.20';
 
 my   @GUESS = map { 'iso-8859-' . $_ } 1..11,13..16;
 push @GUESS , qw(koi8-f koi8-r koi8-u );
@@ -20,17 +22,12 @@ push @GUESS , qw(koi8-f koi8-r koi8-u );
 my $tb = Text::Table->new( qw( LID LANG SEnc OEnc String Ordinal )   );
    $tb->load([             qw( --- ---- ---- ---- ------ ------- ) ] );
 
-my @warns;
-$SIG{__WARN__} = sub {
-   my $m = shift;
-   push @warns, $m;
-   return;
-};
-
 my($s,$o);
 foreach my $l ( available ) {
    $s = to_string( 45, $l);
    $o = to_ordinal(45, $l);
+   $s = '<undefined>' if ! defined $s;
+   $o = '<undefined>' if ! defined $o;
    $tb->load(
       [
          $l,
@@ -44,14 +41,6 @@ foreach my $l ( available ) {
 }
 
 print $tb;
-
-if ( @warns ) {
-   $SIG{__WARN__} = "";
-   warn "\n\n\n";
-   foreach my $w ( @warns ) {
-      warn "[WARNING] $w\n";
-   }
-}
 
 sub _guess {
    my $data = shift;

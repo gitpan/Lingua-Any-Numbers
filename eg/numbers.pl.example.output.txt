@@ -8,6 +8,6 @@ IT  Italian   ascii ascii quarantacinque     45
 ZH  Chinese   ascii ascii SiShi Wu           45                   
 TR  Turkish   UTF8  UTF8  kırk beş           kırk beşinci         
 EU  Basque    ascii ascii berrogeita bost    berrogeita bostgarren
-FR  French    ascii ascii quarante-cinq      45                   
-HU  Hungarian ?     ?     negyvenöt          negyvenötödik        
+FR  French    ascii ?     quarante-cinq      quarante-cinquième   
+HU  Hungarian UTF8  UTF8  negyvenöt          negyvenötödik        
 EN  English   ascii ascii forty-five         forty-fifth          

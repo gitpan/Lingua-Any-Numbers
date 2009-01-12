@@ -45,7 +45,7 @@ my %LANG = (
    AF => { string => 'vyf en viertig'    , ordinal => '45'                    },
    EN => { string => 'forty-five'        , ordinal => 'forty-fifth'           },
    EU => { string => 'berrogeita bost'   , ordinal => 'berrogeita bostgarren' },
-   FR => { string => 'quarante-cinq'     , ordinal => '45'                    },
+   FR => { string => 'quarante-cinq'     , ordinal => 'quarante-cinquième'    },
    HU => { string => 'negyvenöt'         , ordinal => 'negyvenötödik'         },
    IT => { string => 'quarantacinque'    , ordinal => '45'                    },
    JA => { string => '四十五'            , ordinal => '四十五番'               },

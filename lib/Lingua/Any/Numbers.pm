@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.23';
+$VERSION = '0.24';
 
 use subs qw(
    to_string
@@ -99,11 +99,10 @@ sub _to {
       $lang   = _get_lang($lang) if $lang eq 'LOCALE';
    if ( ($lang eq 'LOCALE' || $USE_LOCALE) && ! exists $LMAP{ $lang } ) {
       _w("Locale language ($lang) is not available. "
-          ."Falling back to default language ($DEFAULT)");
+        ."Falling back to default language ($DEFAULT)");
       $lang = $DEFAULT; # prevent die()ing from an absent driver
    }
-   my $struct = $LMAP{ $lang };
-   croak "Language ($lang) is not available" if ! $struct;
+   my $struct = $LMAP{ $lang } || croak "Language ($lang) is not available";
    return $struct->{ $type }->( $n );
 }
 
@@ -133,58 +132,53 @@ sub _dummy_oo      {
 }
 
 sub _probe {
-
-   local *DIRH;
-   my($path, $dir, $file);
-   my @classes;
-   foreach my $inc ( @INC ) {
-      $path = File::Spec->catfile( $inc, 'Lingua' );
-      next if ! -d $path;
-      opendir  DIRH, $path or die "opendir($path): $!";
-      while ( $dir = readdir DIRH ) {
-         next if $dir =~ m{ \A \. }xms;
-         next if $dir eq 'Any';
-         $file = File::Spec->catfile( $path, $dir, 'Numbers.pm' );
-         next if ! -e $file;
-         next if   -d _;
-         push @classes, [
-            join('::', 'Lingua', $dir, 'Numbers'),
-            $file,
-            $dir,
-         ];
-      }
-      closedir DIRH;
-   }
-
-   my($code, @compile, $class);
-   foreach my $module ( @classes ) {
-      $class = $module->[LCLASS];
-
+   my @compile;
+   foreach my $module ( _probe_inc() ) {
+      my $class = $module->[LCLASS];
       # PL driver is problematic under 5.5.4
       if ( PREHISTORIC && $class->isa('Lingua::PL::Numbers') ) {
          _w("Disabling $class under legacy perl ($])") && next;
       }
-
-      $code  = "require $class; $class->import;";
-      eval $code;
-      # some modules need attention
-      if ( my $e = $@ ) {
-         _w(_eprobe( $class, $1, $2 )) && next if $e =~ RE_LEGACY_PERL; # JA -> 5.6.2
-         _w(_eprobe( $class, $2, $] )) && next if $e =~ RE_LEGACY_VSTR; # HU -> 5.005_04
-         _w(_eprobe( $class, $]     )) && next if $e =~ RE_UTF8_FILE;   # JA -> 5.005_04
-         die "An error occurred while including sub modules: $e";
-      }
-      else {
-         push @compile, $module;
-      }
+      eval {
+         require File::Spec->catfile( split m{::}xms, $class ) . '.pm';
+         $class->import;
+      };
+      _probe_error($@, $class) && next if $@; # some modules need attention
+      push @compile, $module;
    }
    _compile( \@compile );
+   return 1;
+}
 
+sub _probe_error {
+   my($e, $class) = @_;
+   return  $e =~ RE_LEGACY_PERL ? _w(_eprobe( $class, $1, $2 )) # JA -> 5.6.2
+         : $e =~ RE_LEGACY_VSTR ? _w(_eprobe( $class, $2, $] )) # HU -> 5.005_04
+         : $e =~ RE_UTF8_FILE   ? _w(_eprobe( $class, $]     )) # JA -> 5.005_04
+         : croak("An error occurred while including sub modules: $e")
+         ;
+}
+
+sub _probe_inc {
+   local *DIRH;
+   my @classes;
+   foreach my $inc ( @INC ) {
+      my $path = File::Spec->catfile( $inc, 'Lingua' );
+      next if ! -d $path;
+      opendir DIRH, $path or die "opendir($path): $!";
+      while ( my $dir = readdir DIRH ) {
+         next if $dir =~ m{ \A \. }xms || $dir eq 'Any' || $dir eq 'Slavic';
+         my $file = File::Spec->catfile( $path, $dir, 'Numbers.pm' );
+         next if ! -e $file || -d _;
+         push @classes, [ join('::', 'Lingua', $dir, 'Numbers'), $file, $dir ];
+      }
+      closedir DIRH;
+   }
+   return @classes;
 }
 
 sub _w {
-   return 1 if _is_silent();
-   warn "@_\n";
+   _is_silent() ? 1 : do { warn "@_\n"; 1 };
 }
 
 sub _eprobe {
@@ -196,31 +190,26 @@ sub _eprobe {
 
 sub _compile {
    my $classes = shift;
-   my(%sym, $lcid, $id, $to, $to2, $ord, $cl);
    no strict qw(refs);
-
    foreach my $e ( @{ $classes } ) {
-      $id   = $e->[LID];
-      $lcid = lc $id;
-      $to   = "num2${lcid}";
-      $to2  = "number_to_${lcid}";
-      $ord  = "num2${lcid}_ordinal";
-      $cl   = $e->[LCLASS];
-      %sym  = %{ $cl . "::" };
-
-      $LMAP{ $id } = {}; # init cache
-
-         if ( $sym{ $to  }          ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::" . $to         } }
-      elsif ( $sym{ $to2 }          ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::" . $to2        } }
-      elsif ( $sym{cardinal2alpha}  ) { $LMAP{ $id }->{ string  } = \&{ $cl . "::cardinal2alpha" } }
-      elsif ( $sym{parse}           ) { $LMAP{ $id }->{ string  } =   _dummy_oo( $cl )             }
-      else                            { $LMAP{ $id }->{ string  } = \&_dummy_string              }
-
-         if ( $sym{ $ord }          ) { $LMAP{ $id }->{ ordinal } = \&{ $cl . "::" . $ord        } }
-      elsif ( $sym{ordinal2alpha}   ) { $LMAP{ $id }->{ ordinal } = \&{ $cl . "::ordinal2alpha"  } }
-      else                            { $LMAP{ $id }->{ ordinal } = \&_dummy_ordinal;              }
+      my $l = lc $e->[LID];
+      my $c = $e->[LCLASS];
+      my %s = %{ "${c}::" };
+      $LMAP{ uc $e->[LID] } = {
+         string  => $s{"num2${l}"}         ? \&{"${c}::num2${l}"        }
+                  : $s{"number_to_${l}"}   ? \&{"${c}::number_to_${l}"  }
+                  : $s{cardinal2alpha}     ? \&{"${c}::cardinal2alpha"  }
+                  : $s{parse}              ?   _dummy_oo( $c )
+                  :                          \&_dummy_string
+                  ,
+         ordinal => $s{"num2${l}_ordinal"} ? \&{"${c}::num2${l}_ordinal"}
+                  : $s{"ordinate_to_${l}"} ? \&{"${c}::ordinate_to_${l}"}
+                  : $s{ordinal2alpha}      ? \&{"${c}::ordinal2alpha"   }
+                  :                          \&_dummy_ordinal
+                  ,
+      };
    }
-   undef %sym;
+   return;
 }
 
 1;
@@ -365,10 +354,18 @@ modules manually.
 
 =head1 SEE ALSO
 
-L<Lingua::AF::Numbers>, L<Lingua::EN::Numbers>, L<Lingua::EU::Numbers>,
-L<Lingua::FR::Numbers>, L<Lingua::HU::Numbers>, L<Lingua::IT::Numbers>,
-L<Lingua::JA::Numbers>, L<Lingua::NL::Numbers>, L<Lingua::PL::Numbers>,
-L<Lingua::TR::Numbers>, L<Lingua::ZH::Numbers>.
+   Lingua::AF::Numbers
+   Lingua::BG::Numbers
+   Lingua::EN::Numbers
+   Lingua::EU::Numbers
+   Lingua::FR::Numbers
+   Lingua::HU::Numbers
+   Lingua::IT::Numbers
+   Lingua::JA::Numbers
+   Lingua::NL::Numbers
+   Lingua::PL::Numbers
+   Lingua::TR::Numbers
+   Lingua::ZH::Numbers
 
 =head1 SUPPORT
 
@@ -393,16 +390,16 @@ L<http://cpanratings.perl.org/dist/Lingua-Any-Numbers>.
 
 =head1 AUTHOR
 
-Burak Gürsoy, E<lt>burakE<64>cpan.orgE<gt>
+Burak GÃ¼rsoy, E<lt>burakE<64>cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2007-2008 Burak Gürsoy. All rights reserved.
+Copyright 2007-2009 Burak GÃ¼rsoy. All rights reserved.
 
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify 
-it under the same terms as Perl itself, either Perl version 5.10 or, 
+it under the same terms as Perl itself, either Perl version 5.10.0 or, 
 at your option, any later version of Perl 5 you may have available.
 
 =cut
