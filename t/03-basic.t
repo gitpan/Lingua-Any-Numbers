@@ -43,14 +43,21 @@ $BENCH2 = time;
 
 my %LANG = (
    AF => { string => 'vyf en viertig'    , ordinal => '45'                    },
+   CS => { string => 'ètyøicet pìt'      , ordinal => '45'                    },
+   DE => { string => 'fünfundvierzig'    , ordinal => '45'                    },
    EN => { string => 'forty-five'        , ordinal => 'forty-fifth'           },
+   ES => { string => 'cuarenta y cinco'  , ordinal => 'cuadragésimo quinto' },
    EU => { string => 'berrogeita bost'   , ordinal => 'berrogeita bostgarren' },
    FR => { string => 'quarante-cinq'     , ordinal => 'quarante-cinquième'    },
    HU => { string => 'negyvenöt'         , ordinal => 'negyvenötödik'         },
+   ID => { string => 'empat puluh lima ' , ordinal => '45'                    },
    IT => { string => 'quarantacinque'    , ordinal => '45'                    },
-   JA => { string => '四十五'            , ordinal => '四十五番'               },
+   JA => { string => '四十五'             , ordinal => '四十五番'               },
    NL => { string => 'vijfenveertig'     , ordinal => '45'                    },
-   PL => { string => 'czterdzieci piêæ ', ordinal => '45'                     },
+   NO => { string => 'førti fem'         , ordinal => '45'                    },
+   PL => { string => 'czterdzieci piêæ ' , ordinal => '45'                     },
+   PT => { string => 'quarenta e cinco'  , ordinal => '45'                    },
+   SV => { string => 'fyrtiofem'         , ordinal => '45'                    },
    TR => { string => 'kırk beş'          , ordinal => 'kırk beşinci'          },
    ZH => { string => 'SiShi Wu'          , ordinal => '45'                    },
 );
@@ -64,7 +71,8 @@ foreach my $id ( sort { $a cmp $b } available ) {
       next;
    }
 
-   diag( "$class v" . $class->VERSION . " loaded ok" );
+   my $v = $class->VERSION || '<undef>';
+   diag( "$class v$v loaded ok" );
 
    $ts = $LANG{$id}->{string};
    $to = $LANG{$id}->{ordinal};

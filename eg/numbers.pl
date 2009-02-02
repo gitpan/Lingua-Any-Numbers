@@ -23,7 +23,7 @@ my $tb = Text::Table->new( qw( LID LANG SEnc OEnc String Ordinal )   );
    $tb->load([             qw( --- ---- ---- ---- ------ ------- ) ] );
 
 my($s,$o);
-foreach my $l ( available ) {
+foreach my $l ( sort { $a cmp $b } available ) {
    $s = to_string( 45, $l);
    $o = to_ordinal(45, $l);
    $s = '<undefined>' if ! defined $s;

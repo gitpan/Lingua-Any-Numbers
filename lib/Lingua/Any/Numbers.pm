@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.24';
+$VERSION = '0.25';
 
 use subs qw(
    to_string
@@ -128,7 +128,11 @@ sub _dummy_ordinal { $_[0] }
 sub _dummy_string  { $_[0] }
 sub _dummy_oo      {
    my $class = shift;
-   sub { $class->new->parse( shift ) }
+   my $type  = shift;
+   return $type && ! $class->can('parse')
+         ? sub { $class->new->$type( shift ) }
+         : sub { $class->new->parse( shift ) }
+         ;
 }
 
 sub _probe {
@@ -159,6 +163,11 @@ sub _probe_error {
          ;
 }
 
+# XXX Test Lingua::FR::Nums2Words
+# Maybe add a mechanish to select "Numbers" if there are many for the $ID
+
+# XXX Support Lingua::PT::Nums2Ords
+
 sub _probe_inc {
    local *DIRH;
    my @classes;
@@ -168,13 +177,23 @@ sub _probe_inc {
       opendir DIRH, $path or die "opendir($path): $!";
       while ( my $dir = readdir DIRH ) {
          next if $dir =~ m{ \A \. }xms || $dir eq 'Any' || $dir eq 'Slavic';
-         my $file = File::Spec->catfile( $path, $dir, 'Numbers.pm' );
-         next if ! -e $file || -d _;
-         push @classes, [ join('::', 'Lingua', $dir, 'Numbers'), $file, $dir ];
+         my($file, $type) = _probe_exists($path, $dir);
+         next if ! $file; # bogus
+         push @classes, [ join('::', 'Lingua', $dir, $type), $file, $dir ];
       }
       closedir DIRH;
    }
    return @classes;
+}
+
+sub _probe_exists {
+   my($path, $dir) = @_;
+   foreach my $possibility ( qw[ Numbers Num2Word Nums2Words Numeros ] ) {
+      my $file = File::Spec->catfile( $path, $dir, $possibility . '.pm' );
+      next if ! -e $file || -d _;
+      return $file, $possibility;
+   }
+   return;
 }
 
 sub _w {
@@ -188,28 +207,64 @@ sub _eprobe {
    return sprintf $tmp, @_
 }
 
+# IT::Numbers OO içinde ordinal sağlıyor
+
 sub _compile {
    my $classes = shift;
-   no strict qw(refs);
    foreach my $e ( @{ $classes } ) {
       my $l = lc $e->[LID];
       my $c = $e->[LCLASS];
-      my %s = %{ "${c}::" };
       $LMAP{ uc $e->[LID] } = {
-         string  => $s{"num2${l}"}         ? \&{"${c}::num2${l}"        }
-                  : $s{"number_to_${l}"}   ? \&{"${c}::number_to_${l}"  }
-                  : $s{cardinal2alpha}     ? \&{"${c}::cardinal2alpha"  }
-                  : $s{parse}              ?   _dummy_oo( $c )
-                  :                          \&_dummy_string
-                  ,
-         ordinal => $s{"num2${l}_ordinal"} ? \&{"${c}::num2${l}_ordinal"}
-                  : $s{"ordinate_to_${l}"} ? \&{"${c}::ordinate_to_${l}"}
-                  : $s{ordinal2alpha}      ? \&{"${c}::ordinal2alpha"   }
-                  :                          \&_dummy_ordinal
-                  ,
+         string  => _test_cardinal($c, $l),
+         ordinal => _test_ordinal( $c, $l),
       };
    }
+   #use Data::Dumper;my $d = Data::Dumper->new([\%LMAP]);$d->Deparse(1);warn "DD:". $d->Dump;
    return;
+}
+
+sub _test_cardinal {
+   no strict qw(refs);
+   my($c, $l) = @_;
+   my %s = %{ "${c}::" };
+   my $n = $s{new};
+   return
+        $s{"num2${l}"}         ? \&{"${c}::num2${l}"          }
+      : $s{"number_to_${l}"}   ? \&{"${c}::number_to_${l}"    }
+      : $s{"nums2words"}       ? \&{"${c}::nums2words"        }
+      : $s{"num2word"}         ? \&{"${c}::num2word"          }
+      : $s{cardinal2alpha}     ? \&{"${c}::cardinal2alpha"    }
+      : $s{cardinal}&&$n       ? _dummy_oo( $c, 'cardinal' )
+      : $s{parse}              ? _dummy_oo( $c )
+      : $s{"num2${l}_cardinal"}? $n ? _dummy_oo($c, "num2${l}_cardinal")
+                                    : \&{"${c}::num2${l}_cardinal" }
+      :                          \&_dummy_string
+      ;
+}
+
+sub _test_ordinal {
+   no strict qw(refs);
+   my($c, $l) = @_;
+   my %s = %{ "${c}::" };
+   my $n = $s{new};
+   return
+        $s{"ordinate_to_${l}"}         ? \&{"${c}::ordinate_to_${l}"}
+      : $s{ordinal2alpha}              ? \&{"${c}::ordinal2alpha"   }
+      : $s{ordinal}&&$n&&!_like_en($c) ? _dummy_oo( $c, 'ordinal')
+      : $s{"num2${l}_ordinal"}         ? ($n && ! _like_en($c))
+                                          ? _dummy_oo( $c, "num2${l}_ordinal" )
+                                          : \&{"${c}::num2${l}_ordinal"}
+      :                                \&_dummy_ordinal
+      ;
+}
+
+sub _like_en {
+   my $c  = shift;
+   my $rv = $c->isa('Lingua::EN::Numbers')
+            || $c->isa('Lingua::JA::Numbers')
+            || $c->isa('Lingua::TR::Numbers')
+            ;
+   return $rv;
 }
 
 1;
@@ -238,6 +293,17 @@ or test all available languages
    }
 
 =head1 DESCRIPTION
+
+The most popular C<Lingua> modules are seem to be the ones that convert
+numbers into words. These kind of modules exist for a lot of languages.
+However, there is no standard interface defined for them. Most
+of the modules' interfaces are completely different and some do not implement
+the ordinal conversion at all. C<Lingua::Any::Numbers> tries to create a common
+interface to call these different modules. And if a module has a known
+interface, but does not implement the required function/method then the
+number itself is returned instead of dying. It is also possible to
+take advantage of the automatic locale detection if you install all the
+supported modules listed in the L</SEE ALSO> section.
 
 =head1 IMPORT PARAMETERS
 
@@ -366,6 +432,22 @@ modules manually.
    Lingua::PL::Numbers
    Lingua::TR::Numbers
    Lingua::ZH::Numbers
+   
+   Lingua::CS::Num2Word
+   Lingua::DE::Num2Word
+   Lingua::ES::Numeros
+   Lingua::ID::Nums2Words
+   Lingua::NO::Num2Word
+   Lingua::PT::Nums2Word
+   Lingua::SV::Num2Word
+
+=head2 BOGUS MODULES
+
+Some modules on CPAN suggest to convert numbers into words by their
+names, but they do something different instead. Here is a list of
+the bogus modules:
+
+   Lingua::FA::Number
 
 =head1 SUPPORT
 
