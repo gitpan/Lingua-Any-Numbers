@@ -1,33 +1,30 @@
 ---
 name: Lingua-Any-Numbers
-version: 0.25
+version: 0.26
 author:
   - 'Burak Gursoy <burak@cpan.org>'
 abstract: Converts numbers into (any available language) string.
 license: perl
 resources:
   license: http://dev.perl.org/licenses/
+  repository: http://bitbucket.org/burak/cpan-lingua-any-numbers/
 requires:
   I18N::LangTags: 0.35
   Lingua::EN::Numbers: 0
-  Test::More: 0.40
   Win32::Locale: 0
+build_requires:
+  Test::More: 0.40
 recommends:
-  Lingua::AF::Numbers: 0
-  Lingua::EU::Numbers: 0
-  Lingua::FR::Numbers: 0
-  Lingua::HU::Numbers: 0
-  Lingua::IT::Numbers: 0
-  Lingua::JA::Numbers: 0
-  Lingua::NL::Numbers: 0
-  Lingua::PL::Numbers: 0
-  Lingua::TR::Numbers: 0
-  Lingua::ZH::Numbers: 0
+  Task::Lingua::Any::Numbers: 0.11
 provides:
   Lingua::Any::Numbers:
     file: lib/Lingua/Any/Numbers.pm
-    version: 0.25
-generated_by: Module::Build version 0.3
+    version: 0.26
+no_index:
+  directory:
+    - tools
+    - t
+generated_by: Module::Build version 0.32
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2
