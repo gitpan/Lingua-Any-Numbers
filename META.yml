@@ -1,6 +1,6 @@
 ---
 name: Lingua-Any-Numbers
-version: 0.26
+version: 0.27
 author:
   - 'Burak Gursoy <burak@cpan.org>'
 abstract: Converts numbers into (any available language) string.
@@ -8,21 +8,16 @@ license: perl
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://bitbucket.org/burak/cpan-lingua-any-numbers/
-requires:
-  I18N::LangTags: 0.35
-  Lingua::EN::Numbers: 0
-  Win32::Locale: 0
 build_requires:
   Test::More: 0.40
-recommends:
-  Task::Lingua::Any::Numbers: 0.11
 provides:
   Lingua::Any::Numbers:
     file: lib/Lingua/Any/Numbers.pm
-    version: 0.26
+    version: 0.27
 no_index:
   directory:
-    - tools
+    - monolithic_version
+    - builder
     - t
 generated_by: Module::Build version 0.32
 meta-spec:

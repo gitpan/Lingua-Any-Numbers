@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.26';
+$VERSION = '0.27';
 
 use subs qw(
    to_string
@@ -294,8 +294,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.26> of C<Lingua::Any::Numbers>
-released on C<18 April 2009>.
+This document describes version C<0.27> of C<Lingua::Any::Numbers>
+released on C<23 April 2009>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
