@@ -1,6 +1,6 @@
 ---
 name: Lingua-Any-Numbers
-version: 0.28
+version: 0.29
 author:
   - 'Burak Gursoy <burak@cpan.org>'
 abstract: Converts numbers into (any available language) string.
@@ -15,7 +15,7 @@ build_requires:
 provides:
   Lingua::Any::Numbers:
     file: lib/Lingua/Any/Numbers.pm
-    version: 0.28
+    version: 0.29
 no_index:
   directory:
     - monolithic_version

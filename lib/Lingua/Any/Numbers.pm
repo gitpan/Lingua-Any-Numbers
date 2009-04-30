@@ -2,7 +2,7 @@ package Lingua::Any::Numbers;
 use strict;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.28';
+$VERSION = '0.29';
 
 use subs qw(
    to_string
@@ -294,7 +294,7 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.28> of C<Lingua::Any::Numbers>
+This document describes version C<0.29> of C<Lingua::Any::Numbers>
 released on C<30 April 2009>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert

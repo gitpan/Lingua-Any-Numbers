@@ -13,7 +13,6 @@ builder/Build.pm
 builder/Build/Spec.pm
 t/201-pod.t
 t/202-pod-coverage.t
-t/disabled/200-all-modules-have-the-same-version.t
 Makefile.PL	Generated automatically
 LICENSE
 META.yml
