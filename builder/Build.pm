@@ -95,6 +95,9 @@ sub _create_taint_mode_tests {
       next if $tests[$i] =~ m{ pod[.]t           \z }xms;
       next if $tests[$i] =~ m{ pod\-coverage[.]t \z }xms;
       next if $tests[$i] =~ m{ all\-modules\-have\-the\-same\-version[.]t \z }xms;
+
+      next if -e $taints[$i]; # already created!
+
       open my $ORIG, '<:raw', $tests[$i]  or die "Can not open file($tests[$i]): $!";
       open my $DEST, '>:raw', $taints[$i] or die "Can not open file($taints[$i]): $!";
       print $DEST TAINT_SHEBANG;
