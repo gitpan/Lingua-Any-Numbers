@@ -1,8 +1,9 @@
 package Lingua::Any::Numbers;
 use strict;
+use warnings;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.30';
+$VERSION = '0.40';
 
 use subs qw(
    to_string
@@ -18,43 +19,39 @@ use subs qw(
    available_languages
 );
 
-use constant LCLASS          => 0;
-use constant LFILE           => 1;
-use constant LID             => 2;
+use constant LCLASS         => 0;
 
-use constant PREHISTORIC     =>  $] < 5.006;
-use constant LEGACY          => ($] < 5.008) && ! PREHISTORIC;
+use constant PREHISTORIC    =>  $] < 5.006;
+use constant LEGACY         => ($] < 5.008) && ! PREHISTORIC;
 
 use constant RE_LEGACY_PERL => qr{
-                                 Perl \s+ (.+?) \s+ required
-                                 --this \s+ is \s+ only \s+ (.+?),
-                                 \s+ stopped
-                                 }xmsi;
+   Perl \s+ (.+?) \s+ required
+   --this \s+ is \s+ only \s+ (.+?),
+   \s+ stopped
+}xmsi;
 use constant RE_LEGACY_VSTR => qr{
-                                 syntax \s+ error \s+ at \s+ (.+?)
-                                 \s+ line \s+ (?:.+?),
-                                 \s+ near \s+ "use \s+ (.+?)"
-                                 }xmsi;
-use constant RE_UTF8_FILE => qr{
-                                 Unrecognized \s+ character \s+ \\ \d+ \s+
-                                 }xmsi;
+   syntax \s+ error \s+ at \s+ (.+?)
+   \s+ line \s+ (?:.+?),
+   \s+ near \s+ "use \s+ (.+?)"
+}xmsi;
+use constant RE_UTF8_FILE => qr{ Unrecognized \s+ character \s+ \\ \d+ \s+ }xmsi;
 use File::Spec;
-use Exporter ();
+use base qw( Exporter );
 use Carp qw(croak);
 
 BEGIN {
    *num2str         = *number_to_string    = \&to_string;
    *num2ord         = *number_to_ordinal   = \&to_ordinal;
    *available_langs = *available_languages = \&available;
-}
 
-@ISA         = qw(Exporter);
-@EXPORT      = ();
-@EXPORT_OK   = qw(
-   to_string  number_to_string  num2str
-   to_ordinal number_to_ordinal num2ord
-   available  available_langs   available_languages
-);
+   @EXPORT          = ();
+   @EXPORT_OK       = qw(
+      to_string  number_to_string  num2str
+      to_ordinal number_to_ordinal num2ord
+      available  available_langs   available_languages
+      language_handler
+   );
+}
 
 %EXPORT_TAGS = (
    all       => [ @EXPORT_OK ],
@@ -72,8 +69,7 @@ my $USE_LOCALE = 0;
 _probe(); # fetch/examine/compile all available modules
 
 sub import {
-   my $class = shift;
-   my @args  = @_;
+   my($class, @args) = @_;
    my @exports;
 
    foreach my $thing ( @args ) {
@@ -82,17 +78,33 @@ sub import {
       push @exports, $thing;
    }
 
-   $class->export_to_level( 1, $class, @exports );
+   return $class->export_to_level( 1, $class, @exports );
 }
 
-sub to_string  { _to( string  => @_ ) }
-sub to_ordinal { _to( ordinal => @_ ) }
-sub available  { keys %LMAP           }
+sub to_string  {
+   my @args = @_;
+   return _to( string  => @args )
+}
+
+sub to_ordinal {
+   my @args = @_;
+   return _to( ordinal => @args )
+}
+
+sub available {
+   return keys %LMAP;
+}
+
+sub language_handler {
+   my $lang = shift             || return;
+   my $h    = $LMAP{ uc $lang } || return;
+   return $h->{class};
+}
 
 # -- PRIVATE -- #
 
 sub _to {
-   my $type   = shift || croak "No type specified";
+   my $type   = shift || croak 'No type specified';
    my $n      = shift;
    my $lang   = shift || _get_lang();
       $lang   = uc $lang;
@@ -118,14 +130,14 @@ sub _get_lang_from_locale {
    require I18N::LangTags::Detect;
    my @user_wants = I18N::LangTags::Detect::detect();
    my $lang = $user_wants[0] || return;
-   ($lang,undef) = split /\-/, $lang; # tr-tr
+   ($lang,undef) = split m{\-}xms, $lang; # tr-tr
    return $lang;
 }
 
-sub _is_silent () { defined &SILENT && &SILENT }
+sub _is_silent { return defined &SILENT && SILENT() }
 
-sub _dummy_ordinal { $_[0] }
-sub _dummy_string  { $_[0] }
+sub _dummy_ordinal { return shift }
+sub _dummy_string  { return shift }
 sub _dummy_oo      {
    my $class = shift;
    my $type  = shift;
@@ -143,9 +155,10 @@ sub _probe {
       if ( PREHISTORIC && $class->isa('Lingua::PL::Numbers') ) {
          _w("Disabling $class under legacy perl ($])") && next;
       }
-      eval {
+      my $ok = eval {
          require File::Spec->catfile( split m{::}xms, $class ) . '.pm';
          $class->import;
+         1;
       };
       _probe_error($@, $class) && next if $@; # some modules need attention
       push @compile, $module;
@@ -156,106 +169,169 @@ sub _probe {
 
 sub _probe_error {
    my($e, $class) = @_;
-   return  $e =~ RE_LEGACY_PERL ? _w(_eprobe( $class, $1, $2 )) # JA -> 5.6.2
-         : $e =~ RE_LEGACY_VSTR ? _w(_eprobe( $class, $2, $] )) # HU -> 5.005_04
-         : $e =~ RE_UTF8_FILE   ? _w(_eprobe( $class, $]     )) # JA -> 5.005_04
-         : croak("An error occurred while including sub modules: $e")
-         ;
-}
 
-# XXX Test Lingua::FR::Nums2Words
-# Maybe add a mechanish to select "Numbers" if there are many for the $ID
+   if ( $e =~ RE_LEGACY_PERL ) { # JA -> 5.6.2
+      return _w( _eprobe( $class, $1, $2 ) );
+   }
+
+   if ( $e =~ RE_LEGACY_VSTR ) { # HU -> 5.005_04
+      return _w( _eprobe( $class, $2, $] ) );
+   }
+
+   if ( $e =~ RE_UTF8_FILE ) { # JA -> 5.005_04
+      return _w( _eprobe( $class, $] ) );
+   }
+
+   return croak("An error occurred while including sub modules: $e");
+}
 
 # XXX Support Lingua::PT::Nums2Ords
 
 sub _probe_inc {
-   local *DIRH;
+   require Symbol;
    my @classes;
    foreach my $inc ( @INC ) {
       my $path = File::Spec->catfile( $inc, 'Lingua' );
       next if ! -d $path;
-      opendir DIRH, $path or die "opendir($path): $!";
-      while ( my $dir = readdir DIRH ) {
-         next if $dir =~ m{ \A \. }xms || $dir eq 'Any' || $dir eq 'Slavic';
-         my($file, $type) = _probe_exists($path, $dir);
-         next if ! $file; # bogus
-         push @classes, [ join('::', 'Lingua', $dir, $type), $file, $dir ];
+      my $DIRH = Symbol::gensym();
+      opendir $DIRH, $path or croak "opendir($path): $!";
+      while ( my $dir = readdir $DIRH ) {
+         next if $dir =~ m{ \A [.] }xms || $dir eq 'Any' || $dir eq 'Slavic';
+         my @rs = _probe_exists($path, $dir);
+         next if ! @rs; # bogus
+         foreach my $e ( @rs ) {
+            my($file, $type) = @{ $e };
+            push @classes, [ join(q{::}, 'Lingua', $dir, $type), $file, $dir ];
+         }
       }
-      closedir DIRH;
+      closedir $DIRH;
    }
+
    return @classes;
 }
 
 sub _probe_exists {
    my($path, $dir) = @_;
-   foreach my $possibility ( qw[ Numbers Num2Word Nums2Words Numeros ] ) {
+   my @results;
+   foreach my $possibility ( qw[ Numbers Num2Word Nums2Words Numeros Nums2Ords ] ) {
       my $file = File::Spec->catfile( $path, $dir, $possibility . '.pm' );
       next if ! -e $file || -d _;
-      return $file, $possibility;
+      push @results, [ $file, $possibility ];
    }
-   return;
+   return @results;
 }
 
 sub _w {
-   _is_silent() ? 1 : do { warn "@_\n"; 1 };
+   return _is_silent() ? 1 : do { warn "@_\n"; 1 };
 }
 
 sub _eprobe {
-   my $tmp = @_ == 3 ? "%s requires a newer (%s) perl binary. You have %s"
-           :           "%s requires a newer perl binary. You have %s"
-           ;
-   return sprintf $tmp, @_
+   my @args = @_;
+   my $tmp  = @args > 2 ? q{%s requires a newer (%s) perl binary. You have %s}
+            :             q{%s requires a newer perl binary. You have %s}
+            ;
+   return sprintf $tmp, @args;
 }
 
-# IT::Numbers OO içinde ordinal sağlıyor
+sub _merge_into_numbers {
+   my($id, $lang ) = @_;
+   my $e       = delete $lang->{ $id };
+   my %test    = map { @{ $_ } } @{ $e };
+   my $words   = delete $test{'Lingua::' . $id . '::Nums2Words' };
+   my $ords    = delete $test{'Lingua::' . $id . '::Nums2Ords' };
+   my $numbers = delete $test{'Lingua::' . $id . '::Numbers' };
+   if ( ! $numbers && ( $ords || $words ) ) {
+      my $file  = sprintf 'Lingua/%s/Numbers.pm', $id;
+      my $c     = sprintf 'Lingua::%s::Numbers', $id;
+      $INC{ $file } ||= 1;
+      my $n     = $c . '::num2' . lc $id;
+      my $v     = $c . '::VERSION';
+      my $o     = $n . '_ordinal';
+      my $card  = 'Lingua::' . $id . '::Nums2Words::num2word';
+      my $ord   = 'Lingua::' . $id . '::Nums2Ords::num2ord';
+      $lang->{ $id } = [ $c, $INC{ $file } ];
+
+      no strict qw( refs );
+      *{ $n } =   \&{ $card    } if $words && ! $c->can('num2tr');
+      *{ $o } =   \&{ $ord     } if $ords  && ! $c->can('num2ord');
+      *{ $v } = sub { $VERSION } if           ! $c->can('VERSION');
+      use strict;
+      return;
+   }
+   $lang->{ $id } = $e; # restore
+   return;
+}
 
 sub _compile {
    my $classes = shift;
+   my %lang;
    foreach my $e ( @{ $classes } ) {
-      my $l = lc $e->[LID];
-      my $c = $e->[LCLASS];
-      $LMAP{ uc $e->[LID] } = {
+      my($class, $file, $id) = @{ $e };
+      $lang{ $id } = [] if ! defined $lang{ $id };
+      push @{ $lang{ $id } }, [ $class, $file ];
+   }
+
+   foreach my $id ( keys %lang ) {
+      if ( $id eq 'PT' ) {
+         _merge_into_numbers( $id, \%lang );
+         next;
+      }
+      my @choices = @{ $lang{ $id } };
+      my $numbers;
+      foreach my $c ( @choices ) {
+         my($class, $file) = @{ $c };
+         $numbers = $c if $class =~ m{::Numbers\z}xms;
+      }
+      $lang{ $id } = $numbers ? [ @{ $numbers} ] : shift @choices;
+   }
+
+   foreach my $l ( keys %lang ) {
+      my $e = $lang{ $l };
+      my $c = $e->[0];
+      $LMAP{ uc $l } = {
          string  => _test_cardinal($c, $l),
          ordinal => _test_ordinal( $c, $l),
+         class   => $c,
       };
    }
-   #use Data::Dumper;my $d = Data::Dumper->new([\%LMAP]);$d->Deparse(1);warn "DD:". $d->Dump;
+
    return;
 }
 
 sub _test_cardinal {
-   no strict qw(refs);
    my($c, $l) = @_;
+   $l = lc $l;
+   no strict qw(refs);
    my %s = %{ "${c}::" };
    my $n = $s{new};
    return
         $s{"num2${l}"}         ? \&{"${c}::num2${l}"          }
       : $s{"number_to_${l}"}   ? \&{"${c}::number_to_${l}"    }
-      : $s{"nums2words"}       ? \&{"${c}::nums2words"        }
-      : $s{"num2word"}         ? \&{"${c}::num2word"          }
+      : $s{'nums2words'}       ? \&{"${c}::nums2words"        }
+      : $s{'num2word'}         ? \&{"${c}::num2word"          }
       : $s{cardinal2alpha}     ? \&{"${c}::cardinal2alpha"    }
-      : $s{cardinal}&&$n       ? _dummy_oo( $c, 'cardinal' )
+      : $s{cardinal} && $n     ? _dummy_oo( $c, 'cardinal' )
       : $s{parse}              ? _dummy_oo( $c )
-      : $s{"num2${l}_cardinal"}? $n ? _dummy_oo($c, "num2${l}_cardinal")
-                                    : \&{"${c}::num2${l}_cardinal" }
+      : $s{"num2${l}_cardinal"}? $n ? _dummy_oo( $c, "num2${l}_cardinal" )
+                                    :       \&{"${c}::num2${l}_cardinal" }
       :                          \&_dummy_string
       ;
 }
 
 sub _test_ordinal {
-   no strict qw(refs);
    my($c, $l) = @_;
+   $l = lc $l;
+   no strict qw(refs);
    my %s = %{ "${c}::" };
-   my $n = $s{new};
+   my $n = $s{new} && ! _like_en( $c );
    return
-        $s{"ordinate_to_${l}"}         ? \&{"${c}::ordinate_to_${l}"}
-      : $s{ordinal2alpha}              ? \&{"${c}::ordinal2alpha"   }
-      : $s{ordinal}&&$n&&!_like_en($c) ? _dummy_oo( $c, 'ordinal')
-      : $s{"num2${l}_ordinal"}         ? ($n && ! _like_en($c))
-                                          ? _dummy_oo( $c, "num2${l}_ordinal" )
-                                          : \&{"${c}::num2${l}_ordinal"}
-      :                                \&_dummy_ordinal
-      ;
+     $s{"ordinate_to_${l}"}   ? \&{"${c}::ordinate_to_${l}"}
+   : $s{ordinal2alpha}        ? \&{"${c}::ordinal2alpha"   }
+   : $s{ordinal} && $n        ? _dummy_oo( $c, 'ordinal' )
+   : $s{"num2${l}_ordinal"}   ? $n ? _dummy_oo( $c, "num2${l}_ordinal" )
+                                   :      \&{ "${c}::num2${l}_ordinal" }
+   :                          \&_dummy_ordinal
+   ;
 }
 
 sub _like_en {
@@ -294,8 +370,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.30> of C<Lingua::Any::Numbers>
-released on C<4 May 2009>.
+This document describes version C<0.40> of C<Lingua::Any::Numbers>
+released on C<12 October 2010>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
@@ -391,6 +467,15 @@ Aliases:
 
 =back
 
+=head2 language_handler
+
+Returns the name of the language handler class if you pass a language id and
+a class for that language id is loaded. Returns undef otherwise.
+
+This function can not be imported. Use a fully qualified name to call:
+
+   my $sv = language_handler('SV');
+
 =head1 DEBUGGING
 
 =head2 SILENT
@@ -436,6 +521,7 @@ modules manually.
    Lingua::JA::Numbers
    Lingua::NL::Numbers
    Lingua::PL::Numbers
+   Lingua::SV::Numbers
    Lingua::TR::Numbers
    Lingua::ZH::Numbers
    
@@ -445,7 +531,6 @@ modules manually.
    Lingua::ID::Nums2Words
    Lingua::NO::Num2Word
    Lingua::PT::Nums2Word
-   Lingua::SV::Num2Word
 
 You can just install L<Task::Lingua::Any::Numbers> to get all modules above.
 
@@ -477,19 +562,5 @@ If you like or hate or have some suggestions about
 C<Lingua::Any::Numbers>, you can comment/rate the distribution via 
 the C<CPAN Ratings> system: 
 L<http://cpanratings.perl.org/dist/Lingua-Any-Numbers>.
-
-=head1 AUTHOR
-
-Burak Gürsoy, E<lt>burakE<64>cpan.orgE<gt>
-
-=head1 COPYRIGHT
-
-Copyright 2007-2009 Burak Gürsoy. All rights reserved.
-
-=head1 LICENSE
-
-This library is free software; you can redistribute it and/or modify 
-it under the same terms as Perl itself, either Perl version 5.10.0 or, 
-at your option, any later version of Perl 5 you may have available.
 
 =cut
