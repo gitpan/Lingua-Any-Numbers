@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.41';
+$VERSION = '0.42';
 
 use subs qw(
    to_string
@@ -370,8 +370,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.41> of C<Lingua::Any::Numbers>
-released on C<8 February 2011>.
+This document describes version C<0.42> of C<Lingua::Any::Numbers>
+released on C<4 April 2011>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
