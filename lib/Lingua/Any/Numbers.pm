@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.42';
+$VERSION = '0.43';
 
 use subs qw(
    to_string
@@ -155,12 +155,24 @@ sub _probe {
       if ( PREHISTORIC && $class->isa('Lingua::PL::Numbers') ) {
          _w("Disabling $class under legacy perl ($])") && next;
       }
-      my $ok = eval {
-         require File::Spec->catfile( split m{::}xms, $class ) . '.pm';
-         $class->import;
-         1;
-      };
-      _probe_error($@, $class) && next if $@; # some modules need attention
+
+      (my $inc = $class) =~ s{::}{/}xmsg;
+      $inc .= q{.pm};
+
+      if ( ! $INC{ $inc } ) {
+         my $file = File::Spec->catfile( split m{::}xms, $class ) . '.pm';
+         eval {
+            require $file;
+            $class->import;
+            1;
+         } or do {
+            # some modules need attention
+            _probe_error($@, $class);
+            next;
+         };
+         $INC{ $inc } = $INC{ $file };
+      }
+
       push @compile, $module;
    }
    _compile( \@compile );
@@ -370,8 +382,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.42> of C<Lingua::Any::Numbers>
-released on C<4 April 2011>.
+This document describes version C<0.43> of C<Lingua::Any::Numbers>
+released on C<5 April 2011>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
