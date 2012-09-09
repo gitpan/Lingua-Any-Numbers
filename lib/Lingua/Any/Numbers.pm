@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.43';
+$VERSION = '0.44';
 
 use subs qw(
    to_string
@@ -20,21 +20,11 @@ use subs qw(
 );
 
 use constant LCLASS         => 0;
-
-use constant PREHISTORIC    =>  $] < 5.006;
-use constant LEGACY         => ($] < 5.008) && ! PREHISTORIC;
-
 use constant RE_LEGACY_PERL => qr{
    Perl \s+ (.+?) \s+ required
    --this \s+ is \s+ only \s+ (.+?),
    \s+ stopped
 }xmsi;
-use constant RE_LEGACY_VSTR => qr{
-   syntax \s+ error \s+ at \s+ (.+?)
-   \s+ line \s+ (?:.+?),
-   \s+ near \s+ "use \s+ (.+?)"
-}xmsi;
-use constant RE_UTF8_FILE => qr{ Unrecognized \s+ character \s+ \\ \d+ \s+ }xmsi;
 use File::Spec;
 use base qw( Exporter );
 use Carp qw(croak);
@@ -65,6 +55,13 @@ BEGIN {
 my %LMAP;
 my $DEFAULT    = 'EN';
 my $USE_LOCALE = 0;
+# blacklist non-language modules
+my %NOT_LANG   = map { $_ => 1 } qw(
+   Any
+   Base
+   Conlang
+   Slavic
+);
 
 _probe(); # fetch/examine/compile all available modules
 
@@ -92,7 +89,8 @@ sub to_ordinal {
 }
 
 sub available {
-   return keys %LMAP;
+   my @ids = sort keys %LMAP;
+   return @ids;
 }
 
 sub language_handler {
@@ -151,10 +149,6 @@ sub _probe {
    my @compile;
    foreach my $module ( _probe_inc() ) {
       my $class = $module->[LCLASS];
-      # PL driver is problematic under 5.5.4
-      if ( PREHISTORIC && $class->isa('Lingua::PL::Numbers') ) {
-         _w("Disabling $class under legacy perl ($])") && next;
-      }
 
       (my $inc = $class) =~ s{::}{/}xmsg;
       $inc .= q{.pm};
@@ -181,20 +175,10 @@ sub _probe {
 
 sub _probe_error {
    my($e, $class) = @_;
-
    if ( $e =~ RE_LEGACY_PERL ) { # JA -> 5.6.2
       return _w( _eprobe( $class, $1, $2 ) );
    }
-
-   if ( $e =~ RE_LEGACY_VSTR ) { # HU -> 5.005_04
-      return _w( _eprobe( $class, $2, $] ) );
-   }
-
-   if ( $e =~ RE_UTF8_FILE ) { # JA -> 5.005_04
-      return _w( _eprobe( $class, $] ) );
-   }
-
-   return croak("An error occurred while including sub modules: $e");
+   croak("An error occurred while including sub modules: $e");
 }
 
 sub _probe_inc {
@@ -206,7 +190,7 @@ sub _probe_inc {
       my $DIRH = Symbol::gensym();
       opendir $DIRH, $path or croak "opendir($path): $!";
       while ( my $dir = readdir $DIRH ) {
-         next if $dir =~ m{ \A [.] }xms || $dir eq 'Any' || $dir eq 'Slavic';
+         next if $dir =~ m{ \A [.] }xms || $NOT_LANG{ $dir };
          my @rs = _probe_exists($path, $dir);
          next if ! @rs; # bogus
          foreach my $e ( @rs ) {
@@ -250,6 +234,7 @@ sub _merge_into_numbers {
    my $words   = delete $test{'Lingua::' . $id . '::Nums2Words' };
    my $ords    = delete $test{'Lingua::' . $id . '::Nums2Ords' };
    my $numbers = delete $test{'Lingua::' . $id . '::Numbers' };
+
    if ( ! $numbers && ( $ords || $words ) ) {
       my $file  = sprintf 'Lingua/%s/Numbers.pm', $id;
       my $c     = sprintf 'Lingua::%s::Numbers', $id;
@@ -262,7 +247,7 @@ sub _merge_into_numbers {
       my $ord   = 'Lingua::' . $id . '::Nums2Ords::num2ord';
       $lang->{ $id } = [ $c, $INC{ $file } ];
 
-      no strict qw( refs );
+      no strict qw( refs ); ## no critic (ProhibitProlongedStrictureOverride)
       *{ $n } =   \&{ $card    } if $words && ! $c->can('num2tr');
       *{ $o } =   \&{ $ord     } if $ords  && ! $c->can('num2ord');
       *{ $v } = sub { $VERSION } if           ! $c->can('VERSION');
@@ -270,7 +255,9 @@ sub _merge_into_numbers {
 
       return;
    }
+
    $lang->{ $id } = $e; # restore
+
    return;
 }
 
@@ -382,8 +369,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.43> of C<Lingua::Any::Numbers>
-released on C<5 April 2011>.
+This document describes version C<0.44> of C<Lingua::Any::Numbers>
+released on C<9 September 2012>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
@@ -397,12 +384,12 @@ take advantage of the automatic locale detection if you install all the
 supported modules listed in the L</SEE ALSO> section.
 
 L<Task::Lingua::Any::Numbers> can be installed to get all the available modules
-related to L<Lingua::Any::Numbers> on CPAN.
+related to L<Lingua::Any::Numbers> on C<CPAN>.
 
 =head1 IMPORT PARAMETERS
 
 All functions and aliases can be imported individually, 
-but there are some pre-defined import tags:
+but there are some predefined import tags:
 
    :all        Import everything (including aliases)
    :standard   available(), to_string(), to_ordinal().
@@ -411,10 +398,10 @@ but there are some pre-defined import tags:
    :std2       Alias to :standard2
    :long       available_languages(), number_to_string(), number_to_ordinal()
 
-=head1 IMPORT PRAGMAS
+=head1 C<IMPORT PRAGMAS>
 
 Some parameters enable/disable module features. C<+> is prefixed to enable
-these options. Pragmas have global effect (i.e.: not lexical), they can not
+these options. C<Pragmas> have global effect (i.e.: not lexical), they can not
 be disabled afterwards.
 
 =head2 locale
@@ -425,10 +412,10 @@ Use the language from system locale:
    print to_string(81); # will use locale
 
 However, the second parameter to the functions take precedence. If the language
-parameter is used, C<locale> pragma will be discarded.
+parameter is used, C<locale> C<pragma> will be discarded.
 
 Install all the C<Lingua::*::Numbers> modules to take advantage of the
-locale pragma.
+locale C<pragma>.
 
 It is also possible to enable C<locale> usage through the functions.
 See L</FUNCTIONS>.
@@ -447,7 +434,7 @@ Aliases:
 
 =over 4
 
-=item num2str
+=item C<num2str>
 
 =item number_to_string
 
@@ -459,7 +446,7 @@ Aliases:
 
 =over 4
 
-=item num2ord
+=item C<num2ord>
 
 =item number_to_ordinal
 
@@ -482,7 +469,7 @@ Aliases:
 =head2 language_handler
 
 Returns the name of the language handler class if you pass a language id and
-a class for that language id is loaded. Returns undef otherwise.
+a class for that language id is loaded. Returns C<undef> otherwise.
 
 This function can not be imported. Use a fully qualified name to call:
 
@@ -504,8 +491,8 @@ C<Lingua::Any::Numbers::SILENT> is not defined by default.
 
 =item *
 
-Some modules return C<UTF8>, while others return arbitrary encodings.
-C<ascii> is ok, but others will be problematic. A future release can 
+Some modules return C<UTF8>, while others return arbitrary C<encodings>.
+C<ascii> is all right, but others will be problematic. A future release can
 convert all to C<UTF8>.
 
 =item *
@@ -548,31 +535,23 @@ You can just install L<Task::Lingua::Any::Numbers> to get all modules above.
 
 =head2 BOGUS MODULES
 
-Some modules on CPAN suggest to convert numbers into words by their
+Some modules on C<CPAN> suggest to convert numbers into words by their
 names, but they do something different instead. Here is a list of
 the bogus modules:
 
    Lingua::FA::Number
 
-=head1 SUPPORT
+=head1 AUTHOR
 
-=head2 BUG REPORTS
+Burak Gursoy <burak@cpan.org>.
 
-All bug reports and wishlist items B<must> be reported via
-the CPAN RT system. It is accessible at
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Lingua-Any-Numbers>.
+=head1 COPYRIGHT
 
-=head2 DISCUSSION FORUM
+Copyright 2007 - 2012 Burak Gursoy. All rights reserved.
 
-C<CPAN::Forum> is a place for discussing C<CPAN>
-modules. It also has a C<Lingua::Any::Numbers> section at
-L<http://www.cpanforum.com/dist/Lingua-Any-Numbers>.
+=head1 LICENSE
 
-=head2 RATINGS
-
-If you like or hate or have some suggestions about
-C<Lingua::Any::Numbers>, you can comment/rate the distribution via 
-the C<CPAN Ratings> system: 
-L<http://cpanratings.perl.org/dist/Lingua-Any-Numbers>.
-
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.12.3 or,
+at your option, any later version of Perl 5 you may have available.
 =cut

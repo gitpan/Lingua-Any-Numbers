@@ -1,18 +1,27 @@
-lib/Lingua/Any/Numbers.pm
-t/03-basic.t
-t/04-locale.t
+.perlcriticrc
+Build.PL			Generated automatically
+builder/lib/Build.pm
+builder/lib/Build/Constants.pm
+builder/lib/Build/Spec.pm
+builder/lib/Build/Util.pm
+builder/templates/pod/author.pod
+builder/templates/pod/monolith-warning.pod
+builder/templates/tools/Build.PL
+builder/templates/tools/builder.header
+builder/templates/tools/Makefile.PL
+builder/templates/tools/Makefile.PL.hook
+Changes
 eg/numbers.pl
 eg/numbers.pl.example.output.txt
-Build.PL
-Changes
+lib/Lingua/Any/Numbers.pm
+LICENSE
+Makefile.PL			Generated automatically
 MANIFEST
+META.json
+META.yml
 README
 SPEC
-.perlcriticrc
-builder/Build.pm
-builder/Build/Spec.pm
-t/201-pod.t
-t/202-pod-coverage.t
-Makefile.PL	Generated automatically
-LICENSE
-META.yml
+t/03-basic.t
+t/04-locale.t
+xt/author/201-pod.t
+xt/author/202-pod-coverage.t
