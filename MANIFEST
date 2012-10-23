@@ -22,6 +22,8 @@ META.yml
 README
 SPEC
 t/03-basic.t
+t/03-taint-mode-basic.t
 t/04-locale.t
+t/04-taint-mode-locale.t
 xt/author/201-pod.t
 xt/author/202-pod-coverage.t

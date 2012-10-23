@@ -4,7 +4,7 @@
       "Burak Gursoy <burak@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4001, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Module::Build version 0.4003, CPAN::Meta::Converter version 2.120921",
    "license" : [
       "perl_5"
    ],
@@ -45,7 +45,7 @@
    "provides" : {
       "Lingua::Any::Numbers" : {
          "file" : "lib/Lingua/Any/Numbers.pm",
-         "version" : "0.44"
+         "version" : "0.45"
       }
    },
    "release_status" : "stable",
@@ -57,5 +57,5 @@
          "url" : "http://bitbucket.org/burak/cpan-lingua-any-numbers/"
       }
    },
-   "version" : "0.44"
+   "version" : "0.45"
 }

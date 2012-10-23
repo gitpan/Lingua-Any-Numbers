@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS );
 
-$VERSION = '0.44';
+$VERSION = '0.45';
 
 use subs qw(
    to_string
@@ -191,6 +191,7 @@ sub _probe_inc {
       opendir $DIRH, $path or croak "opendir($path): $!";
       while ( my $dir = readdir $DIRH ) {
          next if $dir =~ m{ \A [.] }xms || $NOT_LANG{ $dir };
+         ($dir) = $dir =~ m{([a-z0-9_]+)}xmsi or next; # untaint
          my @rs = _probe_exists($path, $dir);
          next if ! @rs; # bogus
          foreach my $e ( @rs ) {
@@ -369,8 +370,8 @@ or test all available languages
 
 =head1 DESCRIPTION
 
-This document describes version C<0.44> of C<Lingua::Any::Numbers>
-released on C<9 September 2012>.
+This document describes version C<0.45> of C<Lingua::Any::Numbers>
+released on C<24 October 2012>.
 
 The most popular C<Lingua> modules are seem to be the ones that convert
 numbers into words. These kind of modules exist for a lot of languages.
@@ -552,6 +553,6 @@ Copyright 2007 - 2012 Burak Gursoy. All rights reserved.
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.12.3 or,
+it under the same terms as Perl itself, either Perl version 5.12.4 or,
 at your option, any later version of Perl 5 you may have available.
 =cut

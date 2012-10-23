@@ -7,6 +7,7 @@ use lib qw( builder/lib );
 use Build;
 my $mb = Build->new;
 
+$mb->taint_mode_tests( 1 );
 $mb->add_pod_author_copyright_license( 1 );
 $mb->copyright_first_year( 2007 );
 $mb->change_versions( 1 );
